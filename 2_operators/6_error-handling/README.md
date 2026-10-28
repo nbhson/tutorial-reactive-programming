@@ -1,6 +1,6 @@
-# Error Handling & Conditional Operators High-Level Summary
+# Error Handling & Conditional Operators
 
-Nhóm này giúp ứng dụng của bạn **TRÂU BÒ HƠN** (Resilient). Giúp xử lý khi có lỗi xảy ra (thay vì crash app) hoặc xử lý các điều kiện rẽ nhánh dòng chảy.
+Nhóm này giúp ứng dụng của bạn **mềm dẻo hơn** (resilient): xử lý khi có lỗi xảy ra (thay vì làm sập app) và xử lý các điều kiện rẽ nhánh dòng chảy.
 
 ## Giá trị cốt lõi
 Không để lỗi làm sập luồng (stream). Biến lỗi thành cơ hội để phục hồi, thử lại, hoặc thông báo nhẹ nhàng cho người dùng.
@@ -13,11 +13,11 @@ Không để lỗi làm sập luồng (stream). Biến lỗi thành cơ hội đ
 ---
 
 ## 1. catchError
-**Cách hoạt động**: "Lưới đỡ". Khi stream gặp lỗi, thay vì chết (error), nó sẽ nhảy vào `catchError`. Tại đây bạn có thể trả về một stream mới (fallback) để luồng tiếp tục chạy, hoặc ném lỗi tiếp.
+**Cách hoạt động**: "Lưới đỡ". Khi stream gặp lỗi, thay vì kết thúc (error), nó sẽ chuyển vào `catchError`. Tại đây bạn có thể trả về một stream mới (fallback) để luồng tiếp tục chạy, hoặc ném lỗi tiếp.
 -   **Ví dụ Code**:
     ```javascript
     import { of } from 'rxjs';
-    import { map, catchError } from 'rxjs/operators';
+    import { map, catchError } from 'rxjs';
 
     const apiData$ = of('Data', 'Error Here').pipe(
         map(val => {
@@ -38,21 +38,21 @@ Không để lỗi làm sập luồng (stream). Biến lỗi thành cơ hội đ
 
 ### So sánh: throwError vs catchError
 
-Khác nhau hoàn toàn về vai trò: **Một thằng GÂY RA LỖI, một thằng ĐI DỌN LỖI.**
+Khác nhau hoàn toàn về vai trò: **một operator gây ra lỗi, một operator đi dọn lỗi.**
 
-#### 1. throwError (Kẻ gây rối - Producer)
+#### 1. throwError (Producer — nguồn phát lỗi)
 -   **Vai trò**: Là một **Creation Operator** (giống `of`, `from`).
--   **Hành động**: Tạo ra một Observable mà vừa subscribe vào là **chết ngay lập tức** (bắn ra error).
+-   **Hành động**: Tạo ra một Observable mà vừa subscribe vào là **bắn lỗi ngay lập tức**.
 -   **Tương đương**: `throw new Error('Lỗi rồi')` trong JS thuần.
 -   **Dùng khi nào?**:
     1.  Giả lập lỗi để test.
-    2.  Dùng bên trong `catchError` để **ném lỗi tiếp** (Re-throw) nếu không muốn xử lý.
+    2.  Dùng bên trong `catchError` để **ném lỗi tiếp** (Re-throw) nếu không muốn xử lý tại đó.
 
-#### 2. catchError (Người dọn dẹp - Consumer)
+#### 2. catchError (Consumer — nơi xử lý lỗi)
 -   **Vai trò**: Là một **Pipeable Operator** (nằm trong `.pipe()`).
--   **Hành động**: Đứng canh me. Nếu stream phía trên trôi chảy bình thường -> Nó đứng im. Nếu có **Error** bắn xuống -> Nó nhảy ra đỡ lấy (catch).
+-   **Hành động**: Theo dõi stream phía trên. Nếu stream chạy bình thường thì nó không can thiệp; nếu có **Error** bắn xuống thì nó bắt lấy (catch) và cho phép bạn quyết định hướng tiếp theo.
 -   **Tương đương**: Khối `catch(err) { ... }` trong `try-catch`.
--   **Dùng khi nào?**: Khi muốn xử lý lỗi để app không bị crash (ví dụ: trả về data rỗng, log lỗi, hoặc hiển thị thông báo).
+-   **Dùng khi nào?**: Khi muốn xử lý lỗi để app không bị sập (ví dụ: trả về data rỗng, log lỗi, hoặc hiển thị thông báo).
 
 ---
 
@@ -62,14 +62,14 @@ Khác nhau hoàn toàn về vai trò: **Một thằng GÂY RA LỖI, một thằ
 -   **Ví dụ Code**:
     ```javascript
     import { throwError, of } from 'rxjs';
-    import { mergeMap, retry } from 'rxjs/operators';
+    import { mergeMap, retry } from 'rxjs';
 
     let count = 0;
     const unstableApi$ = of('Request').pipe(
         mergeMap(val => {
             if (count++ < 2) {
                 console.log('API Failed...');
-                return throwError('Network Error');
+                return throwError(() => new Error('Network Error')); // RxJS 7: luôn truyền factory
             }
             return of('Success!');
         })
@@ -94,7 +94,7 @@ Khác nhau hoàn toàn về vai trò: **Một thằng GÂY RA LỖI, một thằ
 -   **Ví dụ Code**:
     ```javascript
     import { of } from 'rxjs';
-    import { defaultIfEmpty } from 'rxjs/operators';
+    import { defaultIfEmpty } from 'rxjs';
 
     of().pipe( // Stream rỗng
         defaultIfEmpty('No Data Found')
@@ -109,7 +109,7 @@ Khác nhau hoàn toàn về vai trò: **Một thằng GÂY RA LỖI, một thằ
 -   **Ví dụ Code**:
     ```javascript
     import { of } from 'rxjs';
-    import { throwIfEmpty } from 'rxjs/operators';
+    import { throwIfEmpty } from 'rxjs';
 
     of().pipe(
         throwIfEmpty(() => new Error('Data is required!'))

@@ -1,146 +1,306 @@
-# Giới thiệu Reactive Programming, RxJS và Observable
+# Bản đồ Operators — Tổng quan chương 2
 
-Khi bạn tìm hiểu về Angular, bạn sẽ thấy rằng nó có phụ thuộc vào một library là RxJS. Có khá nhiều concept trong Angular sử dụng đến RxJS như là Forms, HttpClient, hay như là QueryList, EventEmitter, etc.
+Chương 1 trả lời "Observable là gì". Chương này trả lời "làm gì với Observable" — và câu trả lời gần như luôn là: **operator**.
 
-Đây vừa là một điểm mạnh, cũng vừa là điểm yếu của Angular. Vì RxJS xử lý asynchronous (không đồng bộ) rất mạnh, nhưng bù lại bạn sẽ phải học thêm một số các concept khác xoay quanh stream. Thinking in streams.
+> Lưu ý: phần lý thuyết nền (Observable, Observer, Subscription, cơ chế next/error/complete) đã được trình bày đầy đủ ở [1_concepts](../../1_concepts). Bài này tập trung vào **bản đồ của các operator** — chia nhóm, marble diagram, và bảng tra cứu nhanh.
+>
+> Tài liệu gốc: <https://rxjs.dev/guide/operators> — trong đó ghi rõ operator chia làm 2 loại: **Pipeable Operators** (dùng trong `.pipe()`) và **Creation Operators** (hàm đứng độc lập tạo Observable).
 
-## Reactive Programing
+---
 
-> Là lập trình các luồng sự kiện (event) bất đồng bộ (async)
+## 1. Hai loại operator
 
-Một Stream (luồng) gồm nguồn phát tín hiệu sẽ bắn (emit) đi các event có chứa data trong đó và một nơi để lắng nghe, bắt (listen/subscribe) những tín hiệu được emit đi
+**Creation Operators** — hàm độc lập, tạo Observable mới từ không khí hoặc từ nguồn khác:
 
-![Stream](Stream.png)
+```typescript
+import { of, from, fromEvent, interval, timer } from 'rxjs';
 
-Cấu trúc của Reactive programing
-
-![Stream](Reactive-programing.png)
-
-## RxJS core concepts
-
-### Observable
-
-- Observable: đại diện cho ý tưởng về một tập hợp các giá trị hoặc các sự kiện trong tương lai. Khi các giá trị hoặc sự kiện phát sinh trong tương lai, Observable sẽ điều phối nó đến Observer.
-- Observable chỉ là một function (class), Nó nhận đầu vào là một Observer và trả về một function để có thể thực hiện việc cancel quá trình xử lý.
-
-  - Trong lập trình đồng bộ thông thường, chúng ta có một kiểu dữ liệu có thể lưu trữ nhiều phần tử đó chính là Array.
-
-  - Trong thực tế, JS còn có một topic nâng cao nữa là lập trình bất đồng bộ, những thứ như Event, Promise, những thứ mà có thể xảy ra ở bất kỳ thời điểm nào ở trong tương lai mà chúng ta không biết trước.
-
-  - Chúng ta chỉ có thể gửi cho nó một lời nhắc và khi có sự kiện phát sinh thì chương trình sẽ gọi lại lời nhắc đó cho chúng ta (callback). Callback là một phương pháp để chúng ta thực hiện tương tác lại các task bất đồng bộ.
-
-  - Kể cả Promise bạn sẽ vẫn dùng callback để handle `onFulfilled` và `onRejected`. Nhưng hạn chế của Promise là nó chỉ delivery một value duy nhất, nên nó không thể dùng chung cho những thứ có thể delivery nhiều value (ví dụ như DOM event).
-
-  - Observable tỏa sáng không chỉ bởi vì nó có thể handle nhiều value asynchronous, mà còn vì mặt kiến trúc của nó khi coi mọi thứ là các streams, do đó `data` sẽ được chảy qua các luồng xử lý để có thể biến đổi thành các dạng mà bạn mong muốn ở đầu cuối của stream.
-
-### Observer
-
-- Observer là một object chứa một tập 3 callbacks tương ứng cho mỗi loại notification được gửi từ Observable: `next`, `error`, `complete`.
-- Observer được cung cấp là tham số đầu vào của subscribe để kích hoạt Observable execution.
-
-```ts
-observable.subscribe(observer);
+of(1, 2, 3);            // tạo từ các giá trị có sẵn
+from([1, 2, 3]);        // tạo từ Array / Iterable / Promise
+fromEvent(document, 'click'); // từ DOM event
+interval(1000);         // từ thời gian
+timer(3000, 1000);      // chờ 3s rồi tick mỗi 1s
 ```
 
-### Subscription
+**Pipeable Operators** — hàm nhận Observable vào, trả Observable mới ra (pure — không đổi Observable gốc):
 
-- Subscription là một object đại diện cho một nguồn tài nguyên có khả năng hủy được, thông thường trong Rxjs là hủy Observable execution.
+```typescript
+import { of, map, filter } from 'rxjs';
 
-### Operators
-
-- Operators là các pure functions cho phép lập trình functional với Observable.
-
-VD: Chúng ta sẽ tạo ra một hàm có tên là "multiply_2_pure" với mục đích nhân các số đầu vào với 2 và trả kết quả.
-
-Chúng ta thấy rằng, danh sách các số ban đầu không đổi và hàm cũng không tham chiếu đến bất kỳ một biến nào khác ở ngoài phạm vi của hàm. Trường hợp trên được gọi là Pure Functions (Hàm thuần túy). Nghĩa là nội dung hàm sẽ không thay đổi giá trị của đầu vào hoặc bất kỳ dữ liệu nào tồn tại bên ngoài phạm vi của hàm.
-
-```ts
-function multiply_2_pure(numArr: number[]) {
-  let result = [];
-  numArr.forEach((num) => {
-    result.push(num * 2);
-  });
-  return result;
-}
+of(1, 2, 3, 4)
+  .pipe(
+    filter((n) => n % 2 === 0), // 2, 4
+    map((n) => n * 10)          // 20, 40
+  )
+  .subscribe(console.log);
 ```
 
-### Subject
+Mỗi operator trả về một Observable **mới** — Observable ban đầu không bị thay đổi. Đó là tính pure, và đó là lý do bạn có thể tái sử dụng/ghép chúng tự do.
 
-- Subject để thực hiện việc gửi dữ liệu đến nhiều Observers (multicasting).
+---
 
-### Schedulers
+## 2. Bản đồ 8 nhóm operator
 
-- Một scheduler sẽ điều khiển khi nào một subscription bắt đầu thực thi, và khi nào sẽ gửi tín hiệu đi.
-
-## Working with Observables
-
-### Creating Observables
-
-Để create một Observable chúng ta chỉ cần gọi constructor và truyền vào một function (gọi là **subscribe**), trong đó **subscribe function** sẽ nhận đầu vào là một Observer.
-
-```ts
-const observable = new Observable(function subscribe(observer) {
-  const id = setTimeout(() => {
-    observer.next("Hello Rxjs");
-    observer.complete();
-  }, 1000);
-});
+```
+                    Observable nguồn
+                          │
+    ┌─────────┬─────────┼─────────┬─────────┬─────────┬─────────┐
+    │         │         │         │         │         │         │
+ CREATION  TRANSFORM  FILTER   COMBINE   ERROR    UTILITY  HIGHER-ORDER
+ (tạo mới) (biến đổi) (lọc)   (gộp 2+)  (phục hồi)(phụ,    (stream trong
+    │         │         │         │         │     tap,..)   stream)
+   of       map      filter  combineLatest catchError tap    switchMap
+   from     scan     take*   merge         retry*     delay  mergeMap
+   fromEvent buffer* debounceTime concat     throwIf-   finalize concatMap
+   interval pairwise distinct*  zip/forkJoin Empty    audit   exhaustMap
+   timer    groupBy  throttle* windowToggle iif       share   ...
 ```
 
-Để có thể clean up chúng ta sẽ return về một function trong **subscribe function** như sau:
+Thứ tự đọc theo file trong thư mục này:
 
-```ts
-const observable = new Observable(function subscribe(observer) {
-  const id = setTimeout(() => {
-    observer.next("Hello Rxjs");
-    observer.complete();
-  }, 1000);
-  return function unsubscribe() {
-    clearTimeout(id);
-  };
-});
+| # | Bài | Nhóm |
+| --- | --- | --- |
+| 1 | [1_create-operator](../1_create-operator) | Creation |
+| 2 | [2_transformation-operator](../2_transformation-operator) | Transformation |
+| 3 | [3_filtering](../3_filtering) | Filtering |
+| 4 | [4_timer](../4_timer) | Thời gian |
+| 5 | [5_combination](../5_combination) | Combination |
+| 6 | [6_error-handling](../6_error-handling) | Error & Conditional |
+| 7 | [7_higher-order-observable](../7_higher-order-observable) | Higher-order Mapping |
+| 8 | [8_utility-operators](../8_utility-operators) | Utility |
+| 9 | [9_subjects-and-multicasting](../9_subjects-and-multicasting) | Subjects & Multicasting |
+
+---
+
+## 3. Marble diagram cho từng nhóm
+
+Ký hiệu chuẩn: mỗi dòng là thời gian chạy từ trái sang phải; `a b c` là giá trị emit; `|` là complete; `#` là error.
+
+### 3.1 Transformation — biến đổi từng giá trị
+
+```text
+map(x => x * 10):
+s:      ──a──b──c──|          scan((acc,x)=>acc+x):
+t:      ──A──B──C──|          s:      ──a──b──c──|
+                               t:      ──a──ab─abc|
+(a=10a, B=10b, C=10c)
 ```
 
-### Invoking Observable
+`map` biến mỗi giá trị độc lập; `scan` mang theo "tích lũy" — giống `reduce` nhưng xuất kết quả **mỗi bước** chứ không chỉ cuối cùng.
 
-Các Observable hầu hết sẽ giống như một function, tức là nếu bạn có một Observable thì nó chỉ như khai báo một function, do đó những gì bên trong function sẽ không được chạy cho đến khi bạn invoke function đó (lazy computation).
+### 3.2 Filtering — chọn lọc giá trị
 
-Để invoke một Observable bạn chỉ cần `subscribe` vào nó là được. Và sau khi subscribe thì nó sẽ trả về một Subscription.
+```text
+filter(x => x > 2):             take(2):
+s:  ──a──b──c──d──|             s:  ──a──b──c──d──|
+t:  ──────b──c──d──|            t:  ──a──b──|
+(x=3,4,...)                     lấy 2 cái đầu rồi complete
 
-```ts
-const subscription = observable.subscribe({
-  next: (value) => {
-    console.log(value);
-  },
-  error: (error) => {
-    console.log(error);
-  },
-  complete: () => {
-    console.log('Done');
-  }
-});
+debounceTime(3):                throttleTime(3):
+s:  ──a──b──c──────|            s:  ──a──b──c──────|
+t:  ─────────c─────|            t:  ──a─────c──────|
+(chỉ giữ cái cuối sau           (chỉ giữ cái đầu mỗi
+khoảng lặng 3 frame)            cửa sổ 3 frame)
 ```
 
-### Executing Observables
+Ghi nhớ nhanh: `debounceTime` = "chờ cho yên tĩnh rồi mới hành động" (dùng cho search-as-you-type); `throttleTime` = "hành động ngay, rồi im lặng một khoảng" (dùng cho scroll/resize).
 
-Phần code khi chúng ta KHỞI TẠO Observable `new Observable(function subscribe(observer) {...})` chính là “Observable execution”.
+### 3.3 Combination — gộp nhiều stream
 
-Sau khi chúng ta invoke một Observable thì nó bắt đầu chạy, và khi có một signal (dấu hiệu) nào (`next`, `error`, `complete`) gửi đi thì những gì chúng ta cung cấp cho Observer phía trên sẽ được gọi để tương tác lại tín hiệu đó.
+```text
+merge:                          concat:
+s1: ──a──b──|                   s1: ──a──b──|
+s2: ─────c──d──|                s2: ─────c──d──|
+t:  ──a──b─c──d──|              t:  ──a──b────c──d──|
+(xen kẽ, ai đến trước phát      (đợi s1 xong HẾT rồi mới
+trước)                          tới s2)
 
-Có ba kiểu giá trị mà một Observable Execution có thể gửi đi:
+combineLatest:                  zip:
+s1: ──a──b──────|               s1: ──a──b──|
+s2: ────1───2──3|               s2: ──1──2──3──|
+t:  ────a1─b1─b2|               t:  ──a1─b2──|
+(đợi cả hai có giá trị          ghép cặp theo CHỈ SỐ —
+đầu tiên, sau đó mỗi thay       bên nào hết hàng thì hết)
+đổi đều phát cặp mới nhất
 
-- "next" notification: gửi đi một giá trị, có thể là bất kỳ kiểu dữ liệu nào như Number, a String, an Object, etc.
-- "error" notification: gửi đi một JavaScript Error hoặc exception.
-- "complete" notification: không gửi đi một giá trị nào, nhưng nó gửi đi một tín hiệu để báo rằng stream này đã completed, mục đích để Observer có thể thực hiện một hành động nào đó khi stream completed.
+forkJoin:
+s1: ──a──b──|
+s2: ─────c──d──|
+t:  ──────────(bd)|
+(đợi TẤT CẢ complete, phát đúng giá trị CUỐI của từng stream)
+```
 
-Next notifications thường được sử dụng rộng rãi, nó cực kỳ quan trọng, vì nó gửi đi dữ liệu cần thiết cho một Observer.
+Bẫy lớn nhất: `combineLatest` **không phát gì** cho đến khi mọi nguồn đều đã emit ít nhất một giá trị. Nếu một nguồn chưa bao giờ phát, kết quả im lặng — hay dùng `startWith` cho nguồn có thể trống.
 
-Error và Complete notifications có thể chỉ xảy ra duy nhất một lần trong một Observable Execution.
+### 3.4 Error handling — phục hồi luồng
 
-> Lưu ý rằng, chỉ có 1 trong 2 loại tín hiệu trên được gửi đi, nếu đã complete thì không có error, nếu có error thì không có complete. (Chúng không thuộc về nhau :D). Và nếu đã gửi đi complete, hoặc error signal, thì sau đó không có dữ liệu nào được gửi đi nữa. Tức là stream đã close.
+```text
+catchError(() => of('fallback')):
+s:  ──a──b──#
+t:  ──a──b──(f|)      (lỗi thay bằng fallback rồi complete)
 
-### Disposing Observable Executions
+retry(1):
+s:  ──a──#
+t:  ──a──a──#         (resubscribe từ đầu; hết số lần thì lỗi ra ngoài)
 
-Observable có cơ chế cho phép chúng ta hủy việc thực thi. Đó là khi subscribe được gọi, một Observer sẽ bị gắn với một _Observable execution_ mới được tạo, sau đó nó sẽ trả về một object thuộc type Subscription. Kiểu dữ liệu này có một method `unsubscribe` khi chúng ta gọi đến, nó sẽ thực hiện cơ chế để hủy việc thực thi.
+throwIfEmpty(() => new Error('empty')):
+s:  ────|
+t:  ────#             (complete mà chưa phát gì → thành error)
+```
 
-> Lưu ý: nếu bạn tự tạo Observable (bằng new Observable chẳng hạn) thì bạn phải tự thiết lập cơ chế để hủy.
+Nguyên tắc: lỗi làm stream **chết hẳn** — sau `error` không còn giá trị nào cả. `catchError`/`retry` là cách duy nhất để luồng sống tiếp.
+
+### 3.5 Higher-order mapping — stream trong stream
+
+```text
+switchMap (có mới nới cũ):
+outer:  ──a────b─────|
+inner:    ────A──B        (a -> inner chưa xong)
+t:      ──────C──D──|      (b tới -> hủy inner của a, inner của b phát)
+
+concatMap (xếp hàng):
+outer:  ──a──b──|
+inner:    ──A─|            (A mất 3 frame)
+              ──B─|        (B phải ĐỢI A xong)
+t:      ────A───B──|
+
+mergeMap (song song):
+outer:  ──a──b──|
+inner:    ──A─|
+            ──B─|
+t:      ────A─B─|          (A, B chạy đồng thời)
+
+exhaustMap (bận thì bỏ qua):
+outer:  ──a───b──|
+inner:    ────A──|
+t:      ───────A──|         (b tới khi a đang chạy → b bị BỎ)
+```
+
+Chi tiết từng case thực tế: [7_higher-order-observable](../7_higher-order-observable).
+
+### 3.6 Utility — phụ trợ
+
+```text
+tap(x => log(x)):
+s:  ──a──b──|          (tap KHÔNG thay đổi gì — chỉ nhìn trộm)
+t:  ──a──b──|
+
+delay(2):
+s:  ──a──b──|
+t:  ─────a──b──|       (toàn bộ timeline dịch phải)
+
+finalize(() => cleanup()):
+s:  ──a──b──#
+t:  ──a──b──#          (cleanup chạy DÙ complete hay error)
+```
+
+---
+
+## 4. Bảng tra cứu nhanh
+
+### Tạo (Creation)
+
+| Operator | Mục đích |
+| --- | --- |
+| `of(a, b, c)` | Emit lần lượt các giá trị cho trước rồi complete |
+| `from(iterable\|promise)` | Chuyển Array/Promise/Iterable thành Observable |
+| `fromEvent(el, 'click')` | Đóng gói DOM event |
+| `interval(ms)` | Tick số 0,1,2... mỗi ms |
+| `timer(ms)` | Emit 1 lần sau ms; `timer(ms, period)` lặp |
+| `defer(() => obs)` | Tạo Observable LÚC subscribe (lazy) |
+| `throwError(() => err)` | Observable lỗi ngay |
+| `EMPTY`, `NEVER` | Không phát gì + complete / không phát gì mãi |
+
+### Biến đổi (Transformation)
+
+| Operator | Mục đích | Ghi nhớ |
+| --- | --- | --- |
+| `map(fn)` | Biến từng giá trị | Giống Array.map |
+| `scan(fn, seed)` | Tích lũy chạy dần | State theo thời gian |
+| `buffer(obs)`, `bufferTime`, `bufferCount` | Gom nhóm giá trị | Batch request, gom log |
+| `pairwise()` | Phát cặp [trước, sau] | So sánh giá trị liền kề |
+| `groupBy(fn)` | Chia stream theo key | — |
+| `expand(fn)` | Đệ quy: phát rồi biến thành nguồn tiếp | — |
+
+### Lọc (Filtering)
+
+| Operator | Mục đích | Ghi nhớ |
+| --- | --- | --- |
+| `filter(fn)` | Giữ giá trị thoả điều kiện | Giống Array.filter |
+| `take(n)` / `takeLast(n)` | Lấy n giá trị đầu / cuối | take(1) ≈ "chỉ lần đầu" |
+| `first()` / `last()` | Giá trị đầu / cuối | Error nếu trống |
+| `takeUntil(other$)` | Nhận cho tới khi `other` phát | Công cụ hủy theo vòng đời |
+| `takeWhile(fn)` | Nhận cho tới khi fn sai | |
+| `skip(n)`, `skipUntil`, `skipWhile` | Bỏ qua n giá trị đầu | |
+| `debounceTime(ms)` | Chờ im lặng ms rồi phát giá trị cuối | Search input |
+| `throttleTime(ms)` | Phát rồi im lặng ms | Scroll/resize |
+| `auditTime(ms)` | Giống throttle nhưng phát giá trị MỚI NHẤT trong cửa sổ | |
+| `distinctUntilChanged(fn?)` | Bỏ qua giá trị trùng giá trị liền trước | |
+| `first(fn?)`, `single`, `elementAt(i)` | Chọn theo vị trí | |
+| `ignoreElements()` | Bỏ hết giá trị, chỉ quan tâm complete/error | |
+
+### Thời gian
+
+| Operator | Mục đích |
+| --- | --- |
+| `delay(ms)` | Dịch toàn bộ timeline sang phải |
+| `delayWhen(fn)` | Trì hoãn theo điều kiện từng giá trị |
+| `timeout(ms)` | Error nếu không có giá trị trong ms |
+| `timeInterval()` | Phát khoảng cách thời gian giữa các emit |
+| `timestamp()` | Gắn timestamp cho từng giá trị |
+
+### Gộp (Combination)
+
+| Operator | Mục đích | Cẩn thận |
+| --- | --- | --- |
+| `merge(a, b)` | Xen kẽ cả hai | Không đợi |
+| `concat(a, b)` | Tuần tự: a xong mới b | a phải complete |
+| `combineLatest([a, b])` | Phát khi BẤT KỲ nguồn đổi | Cần cả hai đã emit ≥1 |
+| `zip(a, b)` | Ghép theo chỉ số | Bên trễ hơn quyết định nhịp |
+| `withLatestFrom(b)` | Giá trị A kèm giá trị mới nhất của B | A điều khiển nhịp |
+| `forkJoin([a, b])` | Chờ tất cả complete, lấy giá trị cuối | Source không complete → forkJoin không phát |
+| `race(a, b)` | Chỉ stream phát trước thắng | |
+
+### Lỗi & điều kiện
+
+| Operator | Mục đích |
+| --- | --- |
+| `catchError(fn)` | Bắt lỗi, thay bằng fallback stream |
+| `retry(n)` / `retry({delay})` | Resubscribe; RxJS 7.2+ có delay hỗ trợ backoff |
+| `throwIfEmpty(fn)` | Complete rỗng → error |
+| `defaultIfEmpty(v)` | Complete rỗng → phát v |
+| `every(fn)` | Mọi giá trị thoả điều kiện? |
+| `iif(fn, a, b)` | Rẽ nhánh LÚC subscribe |
+
+> Lưu ý: `retryWhen` **deprecated từ RxJS 7.2** — dùng `retry({ delay })`.
+
+### Higher-order mapping
+
+| Operator | Chiến lược | Case điển hình |
+| --- | --- | --- |
+| `switchMap` | Hủy cái cũ, chỉ giữ mới nhất | Search-as-you-type, auto-save |
+| `mergeMap` | Song song không giới hạn | Tải nhiều ảnh, fire-and-forget |
+| `concatMap` | Xếp hàng tuần tự | Upload queue, save từng bước |
+| `exhaustMap` | Bận thì bỏ qua yêu cầu mới | Nút login/submit chống double-click |
+
+### Utility & Multicasting
+
+| Operator | Mục đích |
+| --- | --- |
+| `tap(fn)` | Side effect (log, set state) không đổi luồng |
+| `finalize(fn)` | Chạy khi complete/error/unsubscribe — tắt spinner |
+| `share()` | Multicast không cache |
+| `shareReplay({bufferSize, refCount})` | Multicast kèm cache |
+| `subscribeOn(scheduler)` | Scheduler cho thời điểm subscribe |
+| `observeOn(scheduler)` | Scheduler cho thời điểm phát giá trị |
+
+---
+
+## 5. Quy tắc giữ pipe dễ đọc
+
+1. **Thứ tự trong `pipe` là ý nghĩa.** `debounceTime(300)` đứng **trước** `switchMap` nghĩa là "chờ người dùng ngừng gõ rồi mới gọi API"; đứng **sau** thì debounce áp dụng lên kết quả — hai vị trí, hai hành vi khác nhau.
+2. **`catchError` đặt ở đúng tầng.** Đặt trước `switchMap` để lỗi của inner không chết cả stream; đặt sau để bắt mọi lỗi của pipeline.
+3. **`shareReplay`/`share` gần cuối pipe**, ngay trước khi trả stream ra cho nhiều nơi dùng.
+4. **`takeUntil(destroy$)` đặt CUỐI cùng** — đặt trước switchMap sẽ không hủy được inner đang chạy.
+
+Đọc tiếp: [1_create-operator](../1_create-operator).
